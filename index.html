@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-950 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora & Grilla de Precios LoL Eloboost</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        cinzel: ['Cinzel', 'serif'],
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        hextech: {
+                            gold: '#C8AA6E',
+                            'gold-light': '#F0E6D2',
+                            'gold-dark': '#785A28',
+                            blue: '#0AC8B9',
+                            'blue-dark': '#0397AB',
+                            dark: '#0A1428',
+                            darker: '#091428',
+                            card: '#091A2A',
+                            border: '#1E282D',
+                            accent: '#C89B3C'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #091428;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #785A28;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #C8AA6E;
+        }
+        .hextech-glow {
+            box-shadow: 0 0 15px rgba(200, 170, 110, 0.25);
+        }
+        .hextech-glow-blue {
+            box-shadow: 0 0 15px rgba(10, 200, 185, 0.25);
+        }
+        .glass-panel {
+            background: rgba(9, 26, 42, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(200, 170, 110, 0.2);
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col font-sans antialiased bg-[#030914] text-slate-200 selection:bg-hextech-gold selection:text-slate-950">
+
+    <header class="border-b border-hextech-gold/30 bg-hextech-dark/90 backdrop-blur sticky top-0 z-40 px-4 lg:px-8 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-hextech-gold to-hextech-gold-dark p-[1px] flex items-center justify-center shadow-lg">
+                <div class="w-full h-full bg-slate-950 rounded-lg flex items-center justify-center text-hextech-gold">
+                    <i class="fa-solid fa-trophy text-lg"></i>
+                </div>
+            </div>
+            <div>
+                <h1 class="font-cinzel text-lg md:text-xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-hextech-gold-light via-hextech-gold to-hextech-gold-dark">
+                    LoL Eloboost Pricing Manager
+                </h1>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestión e integración de precios por ganancia de LP</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2 sm:gap-4">
+            <!-- Mode Toggle: Full vs Wizard -->
+            <div class="bg-slate-900 p-1 rounded-lg border border-slate-800 flex text-xs">
+                <button id="btn-mode-table" onclick="setMode('table')" class="px-3 py-1.5 rounded-md font-medium transition-all bg-hextech-gold text-slate-950 font-semibold shadow">
+                    <i class="fa-solid fa-table-cells mr-1.5"></i> Grilla Completa
+                </button>
+                <button id="btn-mode-wizard" onclick="setMode('wizard')" class="px-3 py-1.5 rounded-md font-medium transition-all text-slate-400 hover:text-slate-200">
+                    <i class="fa-solid fa-wand-magic-sparkles mr-1.5"></i> Modo Paso a Paso
+                </button>
+            </div>
+
+            <!-- Quick Auto-Fill Suggestion -->
+            <button onclick="autoFillSuggested()" title="Autocompletar valores base sugeridos" class="px-3 py-1.5 rounded-lg border border-hextech-blue/40 text-hextech-blue hover:bg-hextech-blue/10 text-xs font-semibold transition flex items-center gap-1.5">
+                <i class="fa-solid fa-bolt"></i>
+                <span class="hidden md:inline">Sugerir Precios</span>
+            </button>
+        </div>
+    </header>
+
+    <div class="bg-slate-950 border-b border-slate-800 px-4 lg:px-8 py-2 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+        <!-- Progress stats -->
+        <div class="flex items-center gap-4 w-full sm:w-auto">
+            <span class="text-slate-400 font-medium">Progreso de la Grilla:</span>
+            <div class="flex-1 sm:w-48 bg-slate-900 h-2.5 rounded-full overflow-hidden border border-slate-800">
+                <div id="progress-bar" class="bg-gradient-to-r from-hextech-blue-dark via-hextech-blue to-hextech-gold h-full w-0 transition-all duration-500"></div>
+            </div>
+            <span id="progress-text" class="font-bold text-hextech-gold">0%</span>
+        </div>
+
+        <!-- Export Buttons Toolbar -->
+        <div class="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap">
+            <button onclick="copyToClipboard()" class="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5">
+                <i class="fa-solid fa-copy text-hextech-gold"></i> Copiar Resumen
+            </button>
+            <button onclick="exportToCSV()" class="px-3 py-1.5 rounded-md bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-700/50 transition flex items-center gap-1.5">
+                <i class="fa-solid fa-file-excel"></i> Exportar CSV
+            </button>
+            <button onclick="openExportModal()" class="px-3 py-1.5 rounded-md bg-hextech-gold hover:bg-hextech-gold-light text-slate-950 font-bold transition flex items-center gap-1.5 shadow">
+                <i class="fa-solid fa-share-nodes"></i> Ver / Exportar Reporte
+            </button>
+            <button onclick="resetData()" class="p-1.5 rounded-md text-slate-500 hover:text-red-400 hover:bg-slate-900 transition" title="Reiniciar datos">
+                <i class="fa-solid fa-rotate-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <main class="flex-1 overflow-y-auto p-4 lg:p-8 max-w-7xl w-full mx-auto">
+
+        <!-- VIEW 1: FULL TABLE VIEW -->
+        <div id="view-table" class="space-y-8">
+            <div id="tiers-container" class="space-y-6">
+                <!-- Tier cards dynamically inserted here -->
+            </div>
+        </div>
+
+        <!-- VIEW 2: STEP-BY-STEP WIZARD -->
+        <div id="view-wizard" class="hidden max-w-2xl mx-auto py-6 space-y-6">
+            <!-- Wizard Step Card -->
+            <div class="glass-panel rounded-2xl p-6 md:p-8 border border-hextech-gold/30 shadow-2xl space-y-6 relative overflow-hidden">
+                <div class="absolute -right-12 -bottom-12 opacity-10 pointer-events-none">
+                    <i id="wizard-bg-icon" class="fa-solid fa-shield-halved text-9xl text-hextech-gold"></i>
+                </div>
+
+                <!-- Wizard Header -->
+                <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                    <div>
+                        <span class="text-xs uppercase tracking-widest text-hextech-gold font-bold">Paso <span id="wizard-step-num">1</span> de 8</span>
+                        <h2 id="wizard-tier-name" class="font-cinzel text-2xl font-bold text-slate-100 flex items-center gap-3 mt-1">
+                            <!-- Tier title and icon -->
+                        </h2>
+                    </div>
+                    <div id="wizard-tier-badge" class="px-3 py-1 rounded-full text-xs font-bold border">
+                        <!-- League Badge -->
+                    </div>
+                </div>
+
+                <!-- Inputs for current Tier -->
+                <div id="wizard-inputs-container" class="space-y-4 py-2">
+                    <!-- Dynamic inputs for tier rows -->
+                </div>
+
+                <!-- Wizard Navigation -->
+                <div class="flex items-center justify-between pt-4 border-t border-slate-800">
+                    <button id="btn-wizard-prev" onclick="wizardNav(-1)" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+                        <i class="fa-solid fa-arrow-left"></i> Anterior
+                    </button>
+                    
+                    <span id="wizard-summary-text" class="text-xs text-slate-400 hidden sm:inline">
+                        Total acumulado liga: <strong id="wizard-tier-total" class="text-hextech-gold">$0.00</strong>
+                    </span>
+
+                    <button id="btn-wizard-next" onclick="wizardNav(1)" class="px-5 py-2 rounded-lg bg-hextech-gold hover:bg-hextech-gold-light text-slate-950 font-bold transition flex items-center gap-2 shadow">
+                        Siguiente <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <div id="export-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel w-full max-w-3xl rounded-2xl border border-hextech-gold/40 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            <!-- Modal Header -->
+            <div class="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
+                <div class="flex items-center gap-2.5">
+                    <i class="fa-solid fa-receipt text-hextech-gold text-xl"></i>
+                    <h3 class="font-cinzel text-lg font-bold text-slate-100">Resumen de Tarifas Generadas</h3>
+                </div>
+                <button onclick="closeExportModal()" class="text-slate-400 hover:text-slate-100 p-1">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body / Format Toggle -->
+            <div class="p-5 overflow-y-auto space-y-4 flex-1">
+                <div class="flex items-center justify-between flex-wrap gap-2 text-xs">
+                    <span class="text-slate-400">Selecciona el formato para enviar o guardar:</span>
+                    <div class="flex gap-2">
+                        <button onclick="setExportFormat('chat')" id="fmt-chat" class="px-3 py-1 rounded bg-hextech-gold text-slate-950 font-bold">Texto Chat (Discord/WA)</button>
+                        <button onclick="setExportFormat('table')" id="fmt-table" class="px-3 py-1 rounded bg-slate-800 text-slate-300">Tabla Resumen</button>
+                    </div>
+                </div>
+
+                <!-- Textarea / Preview Container -->
+                <div id="export-preview-container" class="bg-slate-950 rounded-xl border border-slate-800 p-4 font-mono text-xs text-slate-300 whitespace-pre-wrap select-all overflow-x-auto min-h-[250px] max-h-[400px]">
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="p-4 border-t border-slate-800 bg-slate-900/50 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <span class="text-xs text-slate-400">Listo para enviar a clientes o moderadores.</span>
+                <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+                    <button onclick="copyModalContent()" class="px-4 py-2 rounded-lg bg-hextech-gold hover:bg-hextech-gold-light text-slate-950 font-bold text-xs transition flex items-center justify-center gap-2 w-full sm:w-auto">
+                        <i class="fa-solid fa-copy"></i> Copiar Texto
+                    </button>
+                    <button onclick="closeExportModal()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition w-full sm:w-auto">
+                        Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-hextech-gold text-slate-950 px-4 py-3 rounded-xl font-medium shadow-2xl transition-all duration-300 transform translate-y-20 opacity-0 flex items-center gap-2.5 z-50">
+        <i class="fa-solid fa-circle-check text-slate-950 text-lg"></i>
+        <span id="toast-message">Notificación</span>
+    </div>
+
+    <script>
+        // League configuration standard
+        const LEAGUES_DATA = [
+            {
+                id: 'iron',
+                name: 'Hierro',
+                color: 'text-amber-700',
+                borderColor: 'border-amber-800/40',
+                badgeBg: 'bg-amber-950/40 text-amber-500 border-amber-800/50',
+                icon: 'fa-shield-halved',
+                defaultPrices: [1.0, 1.0, 1.0] // Default provided by user example
+            },
+            {
+                id: 'bronze',
+                name: 'Bronce',
+                color: 'text-amber-600',
+                borderColor: 'border-amber-700/40',
+                badgeBg: 'bg-amber-900/40 text-amber-400 border-amber-700/50',
+                icon: 'fa-shield',
+                defaultPrices: ['', '', '']
+            },
+            {
+                id: 'silver',
+                name: 'Plata',
+                color: 'text-slate-300',
+                borderColor: 'border-slate-500/40',
+                badgeBg: 'bg-slate-800/60 text-slate-300 border-slate-600/50',
+                icon: 'fa-shield-cat',
+                defaultPrices: ['', '', '']
+            },
+            {
+                id: 'gold',
+                name: 'Oro',
+                color: 'text-amber-400',
+                borderColor: 'border-amber-500/40',
+                badgeBg: 'bg-amber-900/50 text-amber-300 border-amber-500/50',
+                icon: 'fa-crown',
+                defaultPrices: ['', '', '']
+            },
+            {
+                id: 'platinum',
+                name: 'Platino',
+                color: 'text-teal-400',
+                borderColor: 'border-teal-500/40',
+                badgeBg: 'bg-teal-950/60 text-teal-300 border-teal-500/50',
+                icon: 'fa-gem',
+                defaultPrices: ['', '', '']
+            },
+            {
+                id: 'emerald',
+                name: 'Esmeralda',
+                color: 'text-emerald-400',
+                borderColor: 'border-emerald-500/40',
+                badgeBg: 'bg-emerald-950/60 text-emerald-300 border-emerald-500/50',
+                icon: 'fa-diamond',
+                defaultPrices: ['', '', '']
+            },
+            {
+                id: 'diamond',
+                name: 'Diamante',
+                color: 'text-cyan-400',
+                borderColor: 'border-cyan-500/40',
+                badgeBg: 'bg-cyan-950/60 text-cyan-300 border-cyan-500/50',
+                icon: 'fa-wand-magic-sparkles',
+                defaultPrices: ['', '', '']
+            },
+            {
+                id: 'master',
+                name: 'Maestro / GM / Challenger',
+                color: 'text-purple-400',
+                borderColor: 'border-purple-500/40',
+                badgeBg: 'bg-purple-950/60 text-purple-300 border-purple-500/50',
+                icon: 'fa-chess-king',
+                defaultPrices: ['', '', '']
+            }
+        ];
+
+        const STANDARD_LP_RANGES = [
+            { lp: '17 a 19 LP', wins: 6 },
+            { lp: '20 a 24 LP', wins: 5 },
+            { lp: '25 a 30 LP', wins: 4 }
+        ];
+
+        // State Store
+        let state = {
+            mode: 'table', // 'table' or 'wizard'
+            wizardStep: 0,
+            exportFormat: 'chat',
+            tiers: {}
+        };
+
+        function initApp() {
+            loadSavedData();
+            renderTableView();
+            renderWizardView();
+            updateProgress();
+        }
+
+        function loadSavedData() {
+            const saved = localStorage.getItem('lol_eloboost_pricing_grid');
+            if (saved) {
+                try {
+                    state.tiers = JSON.parse(saved);
+                } catch (e) {
+                    console.error("Error parsing saved state", e);
+                    initDefaultState();
+                }
+            } else {
+                initDefaultState();
+            }
+        }
+
+        function initDefaultState() {
+            state.tiers = {};
+            LEAGUES_DATA.forEach(league => {
+                state.tiers[league.id] = STANDARD_LP_RANGES.map((lpRange, idx) => ({
+                    lp: lpRange.lp,
+                    wins: lpRange.wins,
+                    pricePerGame: league.defaultPrices[idx] !== '' ? league.defaultPrices[idx] : ''
+                }));
+            });
+            saveData();
+        }
+
+        function saveData() {
+            localStorage.setItem('lol_eloboost_pricing_grid', JSON.stringify(state.tiers));
+            updateProgress();
+        }
+
+        function renderTableView() {
+            const container = document.getElementById('tiers-container');
+            container.innerHTML = '';
+
+            LEAGUES_DATA.forEach(league => {
+                const tierData = state.tiers[league.id] || [];
+                
+                const card = document.createElement('div');
+                card.className = `glass-panel rounded-xl border ${league.borderColor} overflow-hidden shadow-lg transition-all duration-300`;
+
+                let rowsHtml = '';
+                tierData.forEach((row, idx) => {
+                    const wins = parseFloat(row.wins) || 0;
+                    const price = parseFloat(row.pricePerGame) || 0;
+                    const totalPrice = (wins * price).toFixed(2);
+                    const isConfigured = row.pricePerGame !== '' && !isNaN(row.pricePerGame);
+
+                    rowsHtml += `
+                        <tr class="border-b border-slate-800/60 hover:bg-slate-900/40 transition text-sm">
+                            <td class="py-3 px-4 text-slate-300 font-medium">
+                                <input type="text" value="${escapeHtml(row.lp)}" 
+                                    onchange="updateRowData('${league.id}', ${idx}, 'lp', this.value)"
+                                    class="bg-transparent border border-transparent hover:border-slate-700 focus:border-hextech-gold rounded px-2 py-1 w-full text-slate-200 outline-none transition">
+                            </td>
+                            <td class="py-3 px-4">
+                                <div class="flex items-center gap-2">
+                                    <input type="number" value="${row.wins}" min="1" max="20"
+                                        onchange="updateRowData('${league.id}', ${idx}, 'wins', this.value)"
+                                        class="bg-slate-900 border border-slate-700 focus:border-hextech-gold rounded px-2 py-1 w-16 text-center text-slate-200 outline-none">
+                                    <span class="text-xs text-slate-400">victorias (para 100 LP)</span>
+                                </div>
+                            </td>
+                            <td class="py-3 px-4">
+                                <div class="relative max-w-[140px]">
+                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-hextech-gold font-bold">$</span>
+                                    <input type="number" value="${row.pricePerGame}" step="0.5" min="0" placeholder="0.00"
+                                        oninput="updateRowData('${league.id}', ${idx}, 'pricePerGame', this.value)"
+                                        class="bg-slate-900/90 border border-slate-700 focus:border-hextech-gold rounded-lg pl-7 pr-3 py-1.5 w-full text-slate-100 font-semibold outline-none transition">
+                                </div>
+                            </td>
+                            <td class="py-3 px-4 font-bold text-hextech-gold text-base">
+                                $${isConfigured ? totalPrice : '0.00'}
+                            </td>
+                            <td class="py-3 px-4 text-right">
+                                ${isConfigured 
+                                    ? `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-950/80 text-emerald-400 border border-emerald-700/50">
+                                        <i class="fa-solid fa-check text-[10px]"></i> Listo
+                                       </span>`
+                                    : `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-900 text-slate-400 border border-slate-700">
+                                        Pendiente
+                                       </span>`
+                                }
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                card.innerHTML = `
+                    <div class="px-5 py-4 border-b border-slate-800 bg-slate-900/40 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <i class="fa-solid ${league.icon} ${league.color} text-xl"></i>
+                            <h3 class="font-cinzel text-lg font-bold ${league.color}">${league.name}</h3>
+                        </div>
+                        <span class="px-3 py-1 rounded-full text-xs font-semibold ${league.badgeBg}">
+                            Liga ${league.name}
+                        </span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="text-xs uppercase tracking-wider text-slate-400 bg-slate-950/40 border-b border-slate-800">
+                                    <th class="py-2.5 px-4">Ganancia de LP</th>
+                                    <th class="py-2.5 px-4">Victorias Req.</th>
+                                    <th class="py-2.5 px-4">Precio x Juego ($ USD)</th>
+                                    <th class="py-2.5 px-4">Total 100 LP</th>
+                                    <th class="py-2.5 px-4 text-right">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rowsHtml}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+                container.appendChild(card);
+            });
+        }
+
+        function renderWizardView() {
+            const league = LEAGUES_DATA[state.wizardStep];
+            if (!league) return;
+
+            document.getElementById('wizard-step-num').innerText = state.wizardStep + 1;
+            document.getElementById('wizard-tier-name').innerHTML = `
+                <i class="fa-solid ${league.icon} ${league.color}"></i> ${league.name}
+            `;
+            
+            const badge = document.getElementById('wizard-tier-badge');
+            badge.className = `px-3 py-1 rounded-full text-xs font-bold border ${league.badgeBg}`;
+            badge.innerText = `Etapa ${state.wizardStep + 1}/8`;
+
+            const bgIcon = document.getElementById('wizard-bg-icon');
+            bgIcon.className = `fa-solid ${league.icon} text-9xl text-hextech-gold`;
+
+            const inputsContainer = document.getElementById('wizard-inputs-container');
+            inputsContainer.innerHTML = '';
+
+            const tierData = state.tiers[league.id] || [];
+            let tierTotal = 0;
+
+            tierData.forEach((row, idx) => {
+                const wins = parseFloat(row.wins) || 0;
+                const price = parseFloat(row.pricePerGame) || 0;
+                const rowTotal = wins * price;
+                if (!isNaN(rowTotal)) tierTotal += rowTotal;
+
+                const rowEl = document.createElement('div');
+                rowEl.className = 'bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-3';
+                rowEl.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <span class="font-semibold text-slate-200 text-sm"><i class="fa-solid fa-chart-line text-hextech-blue mr-2"></i> LP: ${row.lp}</span>
+                        <span class="text-xs text-slate-400">${row.wins} victorias requeridas</span>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div class="flex-1 relative">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-hextech-gold font-bold">$</span>
+                            <input type="number" step="0.5" min="0" placeholder="Ingrese precio por juego" value="${row.pricePerGame}"
+                                oninput="updateRowData('${league.id}', ${idx}, 'pricePerGame', this.value); updateWizardTotals();"
+                                class="bg-slate-950 border border-slate-700 focus:border-hextech-gold rounded-lg pl-7 pr-3 py-2 w-full text-slate-100 font-semibold outline-none text-sm">
+                        </div>
+                        <div class="text-right min-w-[100px]">
+                            <span class="block text-[10px] text-slate-400 uppercase">Subtotal 100 LP</span>
+                            <span class="font-bold text-hextech-gold text-base">$${isNaN(rowTotal) ? '0.00' : rowTotal.toFixed(2)}</span>
+                        </div>
+                    </div>
+                `;
+                inputsContainer.appendChild(rowEl);
+            });
+
+            document.getElementById('wizard-tier-total').innerText = `$${tierTotal.toFixed(2)}`;
+            
+            // Buttons disabled logic
+            document.getElementById('btn-wizard-prev').disabled = state.wizardStep === 0;
+            const nextBtn = document.getElementById('btn-wizard-next');
+            if (state.wizardStep === LEAGUES_DATA.length - 1) {
+                nextBtn.innerHTML = 'Finalizar y Exportar <i class="fa-solid fa-circle-check"></i>';
+            } else {
+                nextBtn.innerHTML = 'Siguiente <i class="fa-solid fa-arrow-right"></i>';
+            }
+        }
+
+        function updateWizardTotals() {
+            const league = LEAGUES_DATA[state.wizardStep];
+            if (!league) return;
+            const tierData = state.tiers[league.id] || [];
+            let tierTotal = 0;
+
+            tierData.forEach((row) => {
+                const wins = parseFloat(row.wins) || 0;
+                const price = parseFloat(row.pricePerGame) || 0;
+                const rowTotal = wins * price;
+                if (!isNaN(rowTotal)) tierTotal += rowTotal;
+            });
+
+            document.getElementById('wizard-tier-total').innerText = `$${tierTotal.toFixed(2)}`;
+        }
+
+        function wizardNav(direction) {
+            const newStep = state.wizardStep + direction;
+            if (newStep >= 0 && newStep < LEAGUES_DATA.length) {
+                state.wizardStep = newStep;
+                renderWizardView();
+            } else if (newStep >= LEAGUES_DATA.length) {
+                openExportModal();
+            }
+        }
+
+        function updateRowData(tierId, rowIndex, field, value) {
+            if (state.tiers[tierId] && state.tiers[tierId][rowIndex]) {
+                state.tiers[tierId][rowIndex][field] = value;
+                saveData();
+                if (state.mode === 'table') {
+                    renderTableView();
+                }
+            }
+        }
+
+        function updateProgress() {
+            let totalRows = 0;
+            let completedRows = 0;
+
+            Object.keys(state.tiers).forEach(tierId => {
+                state.tiers[tierId].forEach(row => {
+                    totalRows++;
+                    if (row.pricePerGame !== '' && !isNaN(row.pricePerGame) && parseFloat(row.pricePerGame) > 0) {
+                        completedRows++;
+                    }
+                });
+            });
+
+            const percent = totalRows > 0 ? Math.round((completedRows / totalRows) * 100) : 0;
+            document.getElementById('progress-bar').style.width = `${percent}%`;
+            document.getElementById('progress-text').innerText = `${percent}% (${completedRows}/${totalRows})`;
+        }
+
+        function setMode(mode) {
+            state.mode = mode;
+            const btnTable = document.getElementById('btn-mode-table');
+            const btnWizard = document.getElementById('btn-mode-wizard');
+            const viewTable = document.getElementById('view-table');
+            const viewWizard = document.getElementById('view-wizard');
+
+            if (mode === 'table') {
+                btnTable.className = "px-3 py-1.5 rounded-md font-medium transition-all bg-hextech-gold text-slate-950 font-semibold shadow";
+                btnWizard.className = "px-3 py-1.5 rounded-md font-medium transition-all text-slate-400 hover:text-slate-200";
+                viewTable.classList.remove('hidden');
+                viewWizard.classList.add('hidden');
+                renderTableView();
+            } else {
+                btnWizard.className = "px-3 py-1.5 rounded-md font-medium transition-all bg-hextech-gold text-slate-950 font-semibold shadow";
+                btnTable.className = "px-3 py-1.5 rounded-md font-medium transition-all text-slate-400 hover:text-slate-200";
+                viewWizard.classList.remove('hidden');
+                viewTable.classList.add('hidden');
+                renderWizardView();
+            }
+        }
+
+        function autoFillSuggested() {
+            // Generates base realistic pricing scaling up by tier
+            const basePrices = {
+                iron: [1.0, 1.0, 1.0],
+                bronze: [1.25, 1.25, 1.25],
+                silver: [1.5, 1.5, 1.5],
+                gold: [2.0, 2.0, 2.0],
+                platinum: [2.5, 2.5, 2.5],
+                emerald: [3.5, 3.5, 3.5],
+                diamond: [5.0, 5.0, 5.0],
+                master: [8.0, 8.0, 8.0]
+            };
+
+            LEAGUES_DATA.forEach(league => {
+                if (basePrices[league.id]) {
+                    state.tiers[league.id].forEach((row, idx) => {
+                        row.pricePerGame = basePrices[league.id][idx];
+                    });
+                }
+            });
+
+            saveData();
+            if (state.mode === 'table') renderTableView();
+            if (state.mode === 'wizard') renderWizardView();
+            showToast("Precios base de ejemplo autocompletados");
+        }
+
+        function resetData() {
+            if (confirm("¿Seguro que deseas borrar todos los precios y restaurar la grilla inicial?")) {
+                initDefaultState();
+                if (state.mode === 'table') renderTableView();
+                if (state.mode === 'wizard') renderWizardView();
+                showToast("Grilla reiniciada correctamente");
+            }
+        }
+
+        function generateTextSummary() {
+            let output = "🏆 **GRILLA DE PRECIOS ELOBOOST - LEAGUE OF LEGENDS** 🏆\n";
+            output += "--------------------------------------------------\n\n";
+
+            LEAGUES_DATA.forEach(league => {
+                output += `🔰 **${league.name.toUpperCase()}**\n`;
+                const rows = state.tiers[league.id] || [];
+                rows.forEach(row => {
+                    const wins = parseFloat(row.wins) || 0;
+                    const price = parseFloat(row.pricePerGame) || 0;
+                    const total = wins * price;
+                    const priceFormatted = (row.pricePerGame !== '' && !isNaN(price)) 
+                        ? `$${price.toFixed(2)} USD/juego -> Total 100 LP: $${total.toFixed(2)} USD` 
+                        : "Pendiente de definir";
+                    
+                    output += `  • Si gana ${row.lp}: requiere ${row.wins} victorias (${priceFormatted})\n`;
+                });
+                output += "\n";
+            });
+
+            output += "--------------------------------------------------\n";
+            output += "📌 *Precios por victoria / subida de 100 LP. Consultas o pedidos vía mensaje directo.*";
+            return output;
+        }
+
+        function generateHTMLTableSummary() {
+            let html = `<table style="width:100%; border-collapse: collapse; font-family: sans-serif; font-size: 13px;">
+                <thead>
+                    <tr style="background: #091428; color: #C8AA6E; text-align: left;">
+                        <th style="padding: 8px; border: 1px solid #1E282D;">Liga</th>
+                        <th style="padding: 8px; border: 1px solid #1E282D;">Ganancia LP</th>
+                        <th style="padding: 8px; border: 1px solid #1E282D;">Victorias</th>
+                        <th style="padding: 8px; border: 1px solid #1E282D;">Precio / Juego</th>
+                        <th style="padding: 8px; border: 1px solid #1E282D;">Total 100 LP</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+            LEAGUES_DATA.forEach(league => {
+                const rows = state.tiers[league.id] || [];
+                rows.forEach((row, idx) => {
+                    const wins = parseFloat(row.wins) || 0;
+                    const price = parseFloat(row.pricePerGame) || 0;
+                    const total = wins * price;
+                    const isConfigured = row.pricePerGame !== '' && !isNaN(price);
+
+                    html += `<tr style="border-bottom: 1px solid #1E282D; background: ${idx % 2 === 0 ? '#0A1428' : '#060D1A'}; text-color: #E2E8F0;">
+                        <td style="padding: 8px; border: 1px solid #1E282D; font-weight: bold; color: #C8AA6E;">${idx === 0 ? league.name : ''}</td>
+                        <td style="padding: 8px; border: 1px solid #1E282D;">${escapeHtml(row.lp)}</td>
+                        <td style="padding: 8px; border: 1px solid #1E282D;">${row.wins} v.</td>
+                        <td style="padding: 8px; border: 1px solid #1E282D;">${isConfigured ? '$' + price.toFixed(2) : '-'}</td>
+                        <td style="padding: 8px; border: 1px solid #1E282D; font-weight: bold; color: #0AC8B9;">${isConfigured ? '$' + total.toFixed(2) : '-'}</td>
+                    </tr>`;
+                });
+            });
+
+            html += `</tbody></table>`;
+            return html;
+        }
+
+        function exportToCSV() {
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "Liga,Ganancia LP,Victorias Requeridas para 100 LP,Precio por Juego (USD),Total 100 LP (USD)\n";
+
+            LEAGUES_DATA.forEach(league => {
+                const rows = state.tiers[league.id] || [];
+                rows.forEach(row => {
+                    const wins = parseFloat(row.wins) || 0;
+                    const price = parseFloat(row.pricePerGame) || 0;
+                    const total = (wins * price).toFixed(2);
+                    const cleanLp = row.lp.replace(/,/g, ' ');
+                    csvContent += `"${league.name}","${cleanLp}",${row.wins},${row.pricePerGame !== '' ? price : ''},${row.pricePerGame !== '' ? total : ''}\n`;
+                });
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "grilla_precios_lol_eloboost.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast("CSV descargado exitosamente");
+        }
+
+        function openExportModal() {
+            document.getElementById('export-modal').classList.remove('hidden');
+            renderExportContent();
+        }
+
+        function closeExportModal() {
+            document.getElementById('export-modal').classList.add('hidden');
+        }
+
+        function setExportFormat(fmt) {
+            state.exportFormat = fmt;
+            document.getElementById('fmt-chat').className = fmt === 'chat' 
+                ? 'px-3 py-1 rounded bg-hextech-gold text-slate-950 font-bold' 
+                : 'px-3 py-1 rounded bg-slate-800 text-slate-300';
+            document.getElementById('fmt-table').className = fmt === 'table' 
+                ? 'px-3 py-1 rounded bg-hextech-gold text-slate-950 font-bold' 
+                : 'px-3 py-1 rounded bg-slate-800 text-slate-300';
+            
+            renderExportContent();
+        }
+
+        function renderExportContent() {
+            const container = document.getElementById('export-preview-container');
+            if (state.exportFormat === 'chat') {
+                container.innerText = generateTextSummary();
+            } else {
+                container.innerHTML = generateHTMLTableSummary();
+            }
+        }
+
+        function copyModalContent() {
+            const text = generateTextSummary();
+            copyTextToClipboard(text);
+            showToast("Resumen copiado al portapapeles");
+        }
+
+        function copyToClipboard() {
+            const text = generateTextSummary();
+            copyTextToClipboard(text);
+            showToast("Resumen copiado al portapapeles");
+        }
+
+        function copyTextToClipboard(text) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text);
+            } else {
+                const textarea = document.createElement("textarea");
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').innerText = msg;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // Initialize App on DOM Load
+        window.onload = function() {
+            initApp();
+        };
+    </script>
+</body>
+</html>
